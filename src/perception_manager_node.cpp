@@ -128,7 +128,13 @@ void saveObjectPositions(vector<cv::Point2f> poses, cv::Point2f anchorpose)
     if (boost::filesystem::create_directory(dir))
         std::cout << "....Successfully Created !" << std::endl;
 
-    configpath += "positions.txt";
+    stringstream ss;
+
+    ss<<ros::Time::now();
+
+    configpath += "positions_";
+    configpath += ss.str();
+    configpath+= ".txt";
 
     ofstream stream(configpath.data());
 
@@ -136,12 +142,13 @@ void saveObjectPositions(vector<cv::Point2f> poses, cv::Point2f anchorpose)
 
     if(stream.is_open())
     {
-        for(size_t i ; i < poses.size() ; i++)
+        for(size_t i =0; i < poses.size() ; i++)
         {
             float diffx = poses[i].x - anchorpose.x;
             float diffy = poses[i].y - anchorpose.y;
 
             stream<<diffx<<" "<<diffy<<"\n\n";
+            std::cout<<diffx<<" "<<diffy<<std::endl;
         }
 
 
@@ -209,7 +216,7 @@ void color_segments_callback(const color_segmentation::SegmentArrayConstPtr& seg
 
             cv::imshow("Object",cv_bridge::toCvShare(image, "bgr8")->image);
 
-            cv::waitKey(30);
+            cv::waitKey(1);
 
             ros::Duration(1.0).sleep();
         }
