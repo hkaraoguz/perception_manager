@@ -1,6 +1,7 @@
 #include <ros/ros.h>
 #include <pcl_ros/point_cloud.h>
 #include <pcl/point_types.h>
+#include <pcl/common/transforms.h>
 
 #include <sstream>
 #include <iostream>
@@ -27,7 +28,29 @@ int workspace_max_x = 0;
 int workspace_min_y = 0;
 int workspace_max_y = 0;
 
+int table_topleft_x = 0;
+int table_topleft_y = 0;
+
+
+
+
+// These are the parameters required to align the object positions w.r.t desired frame of reference
+double roll_angle = 0.0;
+
+double pitch_angle = 0.0;
+
+double yaw_angle = 0.0;
+
+double workspace_metric_offset_x = 0;
+
+double workspace_metric_offset_y = 0;
+
+double workspace_metric_offset_z = 0;
+
 using namespace std;
+
+
+
 
 
 // Get the home path to save data
@@ -48,7 +71,7 @@ string getHomePath()
 }
 
 
-bool readWorkspaceConfig(int* minX, int* maxX, int* minY, int* maxY)
+bool readWorkspaceConfig(int* minX, int* maxX, int* minY, int* maxY, double* roll, double* pitch, double* yaw,int *topleft_x, int *topleft_y)
 {
     string configpath = getHomePath();
 
@@ -72,13 +95,25 @@ bool readWorkspaceConfig(int* minX, int* maxX, int* minY, int* maxY)
             switch(count)
             {
             case 0:
-                *minX = atoi(str.data());
+                *topleft_x = atoi(str.data());
             case 1:
-                *maxX = atoi(str.data());
+                *topleft_y = atoi(str.data());
             case 2:
-                *minY  = atoi(str.data());
+                *minX = atoi(str.data());
             case 3:
+                *maxX = atoi(str.data());
+            case 4:
+                *minY  = atoi(str.data());
+            case 5:
                 *maxY = atoi(str.data());
+            case 6:
+                *roll = atof(str.data());
+            case 7:
+                *pitch = atof(str.data());
+            case 8:
+                *yaw = atof(str.data());
+            default:
+                break;
 
             }
 
@@ -106,9 +141,14 @@ void cloud_callback(PointCloudRGB::ConstPtr msg)
     // printf ("Cloud: width = %d, height = %d\n", msg->width, msg->height);
 
     *cloud = *msg;
-    //extractPlane2(msg);
-    //BOOST_FOREACH (const pcl::PointXYZ& pt, msg->points)
-    // printf ("\t(%f, %f, %f)\n", pt.x, pt.y, pt.z);
+
+
+    Eigen::Affine3f transmat = pcl::getTransformation(0,0,0,roll_angle,pitch_angle,yaw_angle);
+
+
+    pcl::transformPointCloud(*cloud,*cloud,transmat);
+
+
 }
 
 void saveObjectPositions(vector<cv::Point2f> poses, cv::Point2f anchorpose)
@@ -144,8 +184,8 @@ void saveObjectPositions(vector<cv::Point2f> poses, cv::Point2f anchorpose)
     {
         for(size_t i =0; i < poses.size() ; i++)
         {
-            float diffx = poses[i].x - anchorpose.x;
-            float diffy = poses[i].y - anchorpose.y;
+            float diffx = workspace_metric_offset_x-(anchorpose.x-poses[i].x  );
+            float diffy = workspace_metric_offset_y-(anchorpose.y-poses[i].y );
 
             stream<<diffx<<" "<<diffy<<"\n\n";
             std::cout<<diffx<<" "<<diffy<<std::endl;
@@ -183,7 +223,7 @@ void color_segments_callback(const color_segmentation::SegmentArrayConstPtr& seg
 
         cv::Point2f anchorpose;
 
-        int indexWorkspaceTopLeft = (workspace_min_y)*cloud->width + workspace_min_x;
+        int indexWorkspaceTopLeft = (table_topleft_y)*cloud->width + table_topleft_x;
 
         if(indexWorkspaceTopLeft >= cloud->points.size())
         {
@@ -239,10 +279,16 @@ int main(int argc, char **argv)
     ros::NodeHandle pnh("~");
 
 
-    if(!readWorkspaceConfig(&workspace_min_x,&workspace_max_x,&workspace_min_y,&workspace_max_y))
+    if(!readWorkspaceConfig(&workspace_min_x,&workspace_max_x,&workspace_min_y,&workspace_max_y,&roll_angle,&pitch_angle,&yaw_angle,&table_topleft_x,&table_topleft_y))
     {
         ROS_WARN("Could not read workspace dimensions! Working on whole image");
     }
+
+
+    pnh.getParam("workspace_metric_offset_x",workspace_metric_offset_x);
+    pnh.getParam("workspace_metric_offset_y",workspace_metric_offset_y);
+    pnh.getParam("workspace_metric_offset_z",workspace_metric_offset_z);
+
 
     ros::Subscriber pcl_sub = nh.subscribe<PointCloudRGB>("/kinect2/hd/points", 1, cloud_callback);
 
