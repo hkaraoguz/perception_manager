@@ -13,9 +13,6 @@
 
 #include <opencv2/opencv.hpp>
 #include <cv_bridge/cv_bridge.h>
-
-
-
 #include <color_segmentation/SegmentArray.h>
 
 typedef pcl::PointCloud<pcl::PointXYZRGB> PointCloudRGB;

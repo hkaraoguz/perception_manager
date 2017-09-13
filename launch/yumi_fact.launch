@@ -1,8 +1,8 @@
 <launch>
 
 <!-- declare arg to be passed in -->
- <arg name="workspace_metric_offset_x" default="0.745" />
- <arg name="workspace_metric_offset_y" default="0.472" />
+ <arg name="workspace_metric_offset_x" default="0.735" />
+ <arg name="workspace_metric_offset_y" default="0.465" />
  <arg name="workspace_metric_offset_z" default="0.0" />
  
 
