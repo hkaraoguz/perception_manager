@@ -1,15 +1,17 @@
 <launch>
 
 <!-- declare arg to be passed in -->
- <arg name="workspace_metric_offset_x" default="0.735" />
- <arg name="workspace_metric_offset_y" default="0.465" />
+ <arg name="workspace_metric_offset_x" default="0.733" />
+ <arg name="workspace_metric_offset_y" default="0.455" />
  <arg name="workspace_metric_offset_z" default="0.0" />
+ <arg name="visualize" default="False" />
  
 
 <node name="perception_manager_node" pkg="perception_manager" type="perception_manager_node" output="screen">
   <param name="workspace_metric_offset_x" value="$(arg workspace_metric_offset_x)" />
   <param name="workspace_metric_offset_y" value="$(arg workspace_metric_offset_y)" />
   <param name="workspace_metric_offset_z" value="$(arg workspace_metric_offset_z)" />
+  <param name="visualize" value="$(arg visualize)" />
 
 </node>
 
