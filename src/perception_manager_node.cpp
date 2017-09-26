@@ -191,8 +191,8 @@ void saveObjectPositions(vector<perception_manager::TabletopObject> objects, cv:
         {
             //float diffx = workspace_metric_offset_x-(anchorpose.x-poses[i].x  );
             //float diffy = workspace_metric_offset_y-(anchorpose.y-poses[i].y );
-           // std::cout<<anchorpose.x<<" "<<anchorpose.y<<std::endl;
-           // std::cout<<objects[i].metricposcenterx<<" "<<objects[i].metricposcentery<<std::endl;
+            // std::cout<<anchorpose.x<<" "<<anchorpose.y<<std::endl;
+            // std::cout<<objects[i].metricposcenterx<<" "<<objects[i].metricposcentery<<std::endl;
 
             float diffx = (objects[i].metricposcenterx- workspace_metric_offset_x);
             float diffy = (objects[i].metricposcentery- workspace_metric_offset_y);
@@ -245,12 +245,75 @@ vector<float> getPointCloudCoordinates(int pix_x, int pix_y,const PointCloudRGB&
     coordinates[2] = cloud.points[index].z;
 
 
-   // std::cout<<index<<" "<<coordinates[0]<<" "<<coordinates[1]<<std::endl;
+    // std::cout<<index<<" "<<coordinates[0]<<" "<<coordinates[1]<<std::endl;
 
 
     return coordinates;
 
 
+
+}
+vector<float> calculateCenterPosition(int center_x,int center_y,const PointCloudRGB& cloud)
+{
+    float sum_x = 0.0;
+    float sum_y = 0.0;
+    float sum_z = 0.0;
+    int count = 0;
+
+    vector<float> res(3);
+
+
+    vector<float> coordinates = getPointCloudCoordinates(center_x,center_y,cloud);
+    if(coordinates[0] != -999.0)
+    {
+        sum_x += coordinates[0];
+        sum_y += coordinates[1];
+        sum_z += coordinates[2];
+        count++;
+    }
+    coordinates = getPointCloudCoordinates(center_x+1,center_y,cloud);
+    if(coordinates[0] != -999.0)
+    {
+        sum_x += coordinates[0];
+        sum_y += coordinates[1];
+        sum_z += coordinates[2];
+        count++;
+    }
+    coordinates = getPointCloudCoordinates(center_x-1,center_y,cloud);
+    if(coordinates[0] != -999.0)
+    {
+        sum_x += coordinates[0];
+        sum_y += coordinates[1];
+        sum_z += coordinates[2];
+        count++;
+    }
+    coordinates = getPointCloudCoordinates(center_x,center_y+1,cloud);
+    if(coordinates[0] != -999.0)
+    {
+        sum_x += coordinates[0];
+        sum_y += coordinates[1];
+        sum_z += coordinates[2];
+        count++;
+    }
+    coordinates = getPointCloudCoordinates(center_x,center_y-1,cloud);
+    if(coordinates[0] != -999.0)
+    {
+        sum_x += coordinates[0];
+        sum_y += coordinates[1];
+        sum_z += coordinates[2];
+        count++;
+    }
+
+    if(count == 0){
+        res[0] = -999.0;
+        return res;
+    }
+
+    res[0] = sum_x/count;
+    res[1] = sum_y/count;
+    res[2] = sum_z/count;
+
+    return res;
 
 }
 
@@ -265,7 +328,7 @@ perception_manager::TabletopObject createTableTopObjectFromColorSegment(const co
     // Right now the object is invalid
     object.id = -1;
 
-    vector<float> center_coordinates = getPointCloudCoordinates(segment.pixelposcenterx,segment.pixelposcentery,cloud);
+    vector<float> center_coordinates = calculateCenterPosition(segment.pixelposcenterx,segment.pixelposcentery,cloud);//getPointCloudCoordinates(segment.pixelposcenterx,segment.pixelposcentery,cloud);
 
     if(center_coordinates[0] == -999.0) return object;
 
@@ -435,7 +498,7 @@ void color_segments_callback(const color_segmentation::SegmentArrayConstPtr& seg
         for(size_t k = 0; k < segments->segments.size(); k++)
         {
             perception_manager::TabletopObject object = createTableTopObjectFromColorSegment(segments->segments[k],*cloud,count);
-           // std::cout<<count<<std::endl;
+            // std::cout<<count<<std::endl;
             // It is a valid object
             if(object.id >= 0)
             {
@@ -489,7 +552,7 @@ void color_segments_callback(const color_segmentation::SegmentArrayConstPtr& seg
             }
         }
 
-      //  saveObjectPositions(tabletop_objects,anchorpose);
+        //  saveObjectPositions(tabletop_objects,anchorpose);
 
     }
     else
