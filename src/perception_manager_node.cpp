@@ -99,18 +99,19 @@ bool readWorkspaceConfig(int* minX, int* maxX, int* minY, int* maxY, double* rol
 
             switch(count)
             {
+
             case 0:
-                *topleft_x = atoi(str.data());
-            case 1:
-                *topleft_y = atoi(str.data());
-            case 2:
                 *minX = atoi(str.data());
-            case 3:
+            case 1:
                 *maxX = atoi(str.data());
-            case 4:
+            case 2:
                 *minY  = atoi(str.data());
-            case 5:
+            case 3:
                 *maxY = atoi(str.data());
+            case 4:
+                *topleft_x = atoi(str.data());
+            case 5:
+                *topleft_y = atoi(str.data());
             case 6:
                 *roll = atof(str.data());
             case 7:
