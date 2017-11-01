@@ -2,14 +2,13 @@
 #include <pcl_ros/point_cloud.h>
 #include <pcl/point_types.h>
 #include <pcl/common/transforms.h>
+#include <pcl_ros/transforms.h>
 
 #include <sstream>
 #include <iostream>
 #include <fstream>
 #include <string>
-#include <unistd.h>
-#include <pwd.h>
-#include <sys/types.h>
+#include <cpp_utils/utils.h>
 #include <vector>
 
 #include <opencv2/opencv.hpp>
@@ -18,8 +17,9 @@
 
 #include "perception_manager/TabletopObject.h"
 #include "perception_manager/QueryObjects.h"
-//#include <perception_manager/QueryObjectsRequest.h>
-//#include <perception_manager/QueryObjectsResponse.h>
+
+#include <tf/transform_listener.h>
+
 
 typedef pcl::PointCloud<pcl::PointXYZRGB> PointCloudRGB;
 
@@ -39,13 +39,6 @@ bool visualize = false;
 cv::Point2f anchorpose;
 
 
-// These are the parameters required to align the object positions w.r.t desired frame of reference
-double roll_angle = 0.0;
-
-double pitch_angle = 0.0;
-
-double yaw_angle = 0.0;
-
 double workspace_metric_offset_x = 0;
 
 double workspace_metric_offset_y = 0;
@@ -54,31 +47,19 @@ double workspace_metric_offset_z = 0;
 
 using namespace std;
 
+string cloud_topic = "/kinect2/hd/points";
+
+string base_frame = "/yumi_base_link";
+
+tf::TransformListener *tf_listener;
+
 
 vector<perception_manager::TabletopObject> tabletop_objects;
 
 
-// Get the home path to save data
-string getHomePath()
+bool readWorkspaceConfig(int* minX, int* maxX, int* minY, int* maxY,int *topleft_x, int *topleft_y)
 {
-    uid_t uid = getuid();
-    struct passwd *pw = getpwuid(uid);
-
-    if (pw == NULL) {
-        ROS_ERROR("Failed to get homedir. Cannot save configuration file\n");
-        return "";
-    }
-
-    // printf("%s\n", pw->pw_dir);
-    string str(pw->pw_dir);
-    return str;
-
-}
-
-
-bool readWorkspaceConfig(int* minX, int* maxX, int* minY, int* maxY, double* roll, double* pitch, double* yaw,int *topleft_x, int *topleft_y)
-{
-    string configpath = getHomePath();
+    string configpath = CppUtils::getHomePath();
 
     configpath += "/.ros/workspace_segmentation/";
 
@@ -99,24 +80,19 @@ bool readWorkspaceConfig(int* minX, int* maxX, int* minY, int* maxY, double* rol
 
             switch(count)
             {
+
             case 0:
-                *topleft_x = atoi(str.data());
-            case 1:
-                *topleft_y = atoi(str.data());
-            case 2:
                 *minX = atoi(str.data());
-            case 3:
+            case 1:
                 *maxX = atoi(str.data());
-            case 4:
+            case 2:
                 *minY  = atoi(str.data());
-            case 5:
+            case 3:
                 *maxY = atoi(str.data());
-            case 6:
-                *roll = atof(str.data());
-            case 7:
-                *pitch = atof(str.data());
-            case 8:
-                *yaw = atof(str.data());
+            case 4:
+                *topleft_x = atoi(str.data());
+            case 5:
+                *topleft_y = atoi(str.data());
             default:
                 break;
 
@@ -145,13 +121,26 @@ void cloud_callback(PointCloudRGB::ConstPtr msg)
 {
     // printf ("Cloud: width = %d, height = %d\n", msg->width, msg->height);
 
-    *cloud = *msg;
+    //*cloud = *msg;
+
+    if(tf_listener->waitForTransform(base_frame, msg->header.frame_id, ros::Time::now(), ros::Duration(5.0)))
+    {
+        pcl_ros::transformPointCloud(base_frame, *msg, *cloud, *tf_listener);
+
+    }
+    else
+    {
+        ROS_ERROR("Transform from %s to %s cannot be received! Quitting...",msg->header.frame_id.data(),base_frame.data());
+        ros::shutdown();
+    }
 
 
-    Eigen::Affine3f transmat = pcl::getTransformation(0,0,0,roll_angle,pitch_angle,yaw_angle);
 
 
-    pcl::transformPointCloud(*cloud,*cloud,transmat);
+    // Eigen::Affine3f transmat = pcl::getTransformation(0,0,0,roll_angle,pitch_angle,yaw_angle);
+
+
+    //pcl::transformPointCloud(*cloud,*cloud,transmat);
 
 
 }
@@ -159,7 +148,7 @@ void cloud_callback(PointCloudRGB::ConstPtr msg)
 void saveObjectPositions(vector<perception_manager::TabletopObject> objects, cv::Point2f anchorpose)
 {
 
-    string configpath = getHomePath();
+    string configpath = CppUtils::getHomePath();
 
     configpath += "/perception_manager/";
 
@@ -179,7 +168,7 @@ void saveObjectPositions(vector<perception_manager::TabletopObject> objects, cv:
 
     configpath += "positions_";
     configpath += ss.str();
-    configpath+= ".txt";
+    configpath += ".txt";
 
     ofstream stream(configpath.data());
 
@@ -213,9 +202,6 @@ void saveObjectPositions(vector<perception_manager::TabletopObject> objects, cv:
         ROS_ERROR("Text file cannot be opened!!");
 
     }
-
-
-
 
 
 
@@ -328,19 +314,17 @@ perception_manager::TabletopObject createTableTopObjectFromColorSegment(const co
     // Right now the object is invalid
     object.id = -1;
 
-    vector<float> center_coordinates = calculateCenterPosition(segment.pixelposcenterx,segment.pixelposcentery,cloud);//getPointCloudCoordinates(segment.pixelposcenterx,segment.pixelposcentery,cloud);
+    vector<float> center_coordinates = calculateCenterPosition(segment.pixelposcenterx,segment.pixelposcentery,cloud);
 
     if(center_coordinates[0] == -999.0) return object;
-
-    //std::cout<<anchorpose.x<<" "<<anchorpose.y<<std::endl;
 
     object.metricposcenterx = workspace_metric_offset_x + (center_coordinates[0] - anchorpose.x);
 
     object.metricposcentery = workspace_metric_offset_y + (center_coordinates[1] - anchorpose.y);
 
-    object.metricpostablecenterx = -(center_coordinates[1] - anchorpose.y);
+    // object.metricpostablecenterx = -(center_coordinates[1] - anchorpose.y);
 
-    object.metricpostablecentery = -(center_coordinates[0] - anchorpose.x);
+    //  object.metricpostablecentery = -(center_coordinates[0] - anchorpose.x);
 
 
     object.pixelposcenterx = segment.pixelposcenterx;
@@ -403,14 +387,6 @@ perception_manager::TabletopObject createTableTopObjectFromColorSegment(const co
 
     }
 
-    /* int min_x = (int)*std::min_element(cordx.begin(),cordx.end());
-    int max_x = (int)*std::max_element(cordx.begin(),cordx.end());
-
-     std::cout<<min_x<<" "<<max_x<<std::endl;
-
-    int min_y = (int)*std::min_element(cordy.begin(),cordy.end());
-    int max_y = (int)*std::max_element(cordy.begin(),cordy.end());*/
-
 
     vector<float> coordinates_min_x = getPointCloudCoordinates(segment.pixelhull[min_x_index].x,segment.pixelhull[min_x_index].y,cloud);
     vector<float> coordinates_max_x = getPointCloudCoordinates(segment.pixelhull[max_x_index].x,segment.pixelhull[max_x_index].y,cloud);
@@ -419,15 +395,7 @@ perception_manager::TabletopObject createTableTopObjectFromColorSegment(const co
     {
         double width = fabs(coordinates_max_x[0] - coordinates_min_x[0]);
 
-        //width*=fabs(asin(angle2rad(segment.angle)));
-
         object.width = width;
-
-        // double length = fabs(coordinates_max[1] - coordinates_min[1]);
-
-        //length*=fabs(acos(angle2rad(segment.angle)));
-
-        // object.length = length;
 
     }
 
@@ -438,15 +406,7 @@ perception_manager::TabletopObject createTableTopObjectFromColorSegment(const co
     {
         double length = fabs(coordinates_max_y[1] - coordinates_min_y[1]);
 
-        //width*=fabs(asin(angle2rad(segment.angle)));
-
         object.length = length;
-
-        // double length = fabs(coordinates_max[1] - coordinates_min[1]);
-
-        //length*=fabs(acos(angle2rad(segment.angle)));
-
-        // object.length = length;
 
     }
 
@@ -507,40 +467,18 @@ void color_segments_callback(const color_segmentation::SegmentArrayConstPtr& seg
             }
 
 
-            /*  int index = ((int)segments->segments[k].pixelposcentery)*cloud->width;
-            index +=(int)segments->segments[k].pixelposcenterx;
 
-            // If we can determine the position of the segment
-            if(cloud->points[index].x != cloud->points[index].x)
-            {
-
-
-                // std::cout<<index<<std::endl;
-                // std::cout<<index1<<std::endl;
-                std::cout<<k<<std::endl;
-                std::cout<<cloud->points[index].x<<" "<<cloud->points[index].y<<" "<<cloud->points[index].z<<std::endl;
-
-
-
-                std::cout<<cloud->points[indexWorkspaceTopLeft].x<<" "<<cloud->points[indexWorkspaceTopLeft].y<<" "<<cloud->points[indexWorkspaceTopLeft].z<<std::endl;
-
-                positions[k].x = cloud->points[index].x;
-                positions[k].y = cloud->points[index].y;
-
-
-
-
-
-            }*/
         }
 
         for(size_t i=0 ; i < tabletop_objects.size(); i++)
         {
-            /*   ROS_INFO("Tabletop Object with id: %d metric pos x: %.2f metric pos y: %.2f angle: %.2f. Width: %.2f Height %.2f",
-                     tabletop_objects[i].id, tabletop_objects[i].metricposcenterx, tabletop_objects[i].metricposcentery,tabletop_objects[i].angle,tabletop_objects[i].width,tabletop_objects[i].length);
- */
+
             if(visualize)
             {
+
+                ROS_INFO("Tabletop Object with id: %d metric pos x: %.2f metric pos y: %.2f angle: %.2f. Width: %.2f Height %.2f",
+                         tabletop_objects[i].id, tabletop_objects[i].metricposcenterx, tabletop_objects[i].metricposcentery,tabletop_objects[i].angle,tabletop_objects[i].width,tabletop_objects[i].length);
+
 
                 boost::shared_ptr<sensor_msgs::Image> image (new sensor_msgs::Image(tabletop_objects[i].image));
 
@@ -568,13 +506,15 @@ void color_segments_callback(const color_segmentation::SegmentArrayConstPtr& seg
 
 int main(int argc, char **argv)
 {
-    ros::init(argc, argv, "perception_manager_node");
+    ros::init(argc, argv, "color_segmentation_based_perception_node");
+
     ros::NodeHandle nh;
+
     // Private node handle
     ros::NodeHandle pnh("~");
 
 
-    if(!readWorkspaceConfig(&workspace_min_x,&workspace_max_x,&workspace_min_y,&workspace_max_y,&roll_angle,&pitch_angle,&yaw_angle,&table_topleft_x,&table_topleft_y))
+    if(!readWorkspaceConfig(&workspace_min_x,&workspace_max_x,&workspace_min_y,&workspace_max_y,&table_topleft_x,&table_topleft_y))
     {
         ROS_WARN("Could not read workspace dimensions! Working on whole image");
     }
@@ -584,9 +524,13 @@ int main(int argc, char **argv)
     pnh.getParam("workspace_metric_offset_y",workspace_metric_offset_y);
     pnh.getParam("workspace_metric_offset_z",workspace_metric_offset_z);
     pnh.getParam("visualize",visualize);
+    pnh.getParam("cloud_topic",cloud_topic);
+    pnh.getParam("base_frame",base_frame);
 
 
-    ros::Subscriber pcl_sub = nh.subscribe<PointCloudRGB>("/kinect2/hd/points", 1, cloud_callback);
+    tf_listener = new tf::TransformListener(nh);
+
+    ros::Subscriber pcl_sub = nh.subscribe<PointCloudRGB>(cloud_topic.data(), 1, cloud_callback);
 
     ros::Subscriber segment_sub = nh.subscribe<color_segmentation::SegmentArray>("color_segmentation/segments", 1, color_segments_callback);
 
