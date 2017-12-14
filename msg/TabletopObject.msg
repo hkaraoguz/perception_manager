@@ -12,5 +12,5 @@ geometry_msgs/Point32[] pixelhull # the convex hull of the object in pixel coord
 #geometry_msgs/Point32[] metrichull # the convex hull of the object in metric coordinates
 float32 width
 float32 length
-int8 averagehue # the average hue value of the segment
+int32 averagehue # the average hue value of the segment
 float32 angle # the angle of the object
