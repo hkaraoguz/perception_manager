@@ -8,7 +8,7 @@
 #include <iostream>
 #include <fstream>
 #include <string>
-#include <cpp_utils/utils.h>
+#include <ros_cpp_utils/utils.h>
 #include <vector>
 
 #include <opencv2/opencv.hpp>
@@ -59,7 +59,7 @@ vector<perception_manager::TabletopObject> tabletop_objects;
 
 bool readWorkspaceConfig(int* minX, int* maxX, int* minY, int* maxY,int *topleft_x, int *topleft_y)
 {
-    string configpath = CppUtils::getHomePath();
+    string configpath = ROSCppUtils::getHomePath();
 
     configpath += "/.ros/workspace_segmentation/";
 
@@ -148,7 +148,7 @@ void cloud_callback(PointCloudRGB::ConstPtr msg)
 void saveObjectPositions(vector<perception_manager::TabletopObject> objects, cv::Point2f anchorpose)
 {
 
-    string configpath = CppUtils::getHomePath();
+    string configpath = ROSCppUtils::getHomePath();
 
     configpath += "/perception_manager/";
 

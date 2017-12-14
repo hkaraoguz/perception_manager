@@ -15,7 +15,7 @@ find_package(catkin REQUIRED COMPONENTS
   color_segmentation
   sensor_msgs
   cv_bridge
-  cpp_utils
+  ros_cpp_utils
   tf
 )
 
