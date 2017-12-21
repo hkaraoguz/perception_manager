@@ -516,7 +516,7 @@ int main(int argc, char **argv)
 
     if(!readWorkspaceConfig(&workspace_min_x,&workspace_max_x,&workspace_min_y,&workspace_max_y,&table_topleft_x,&table_topleft_y))
     {
-        ROS_WARN("Could not read workspace dimensions! Working on whole image");
+        ROS_WARN("Could not read workspace dimensions! Working on the whole image");
     }
 
 
@@ -545,7 +545,8 @@ int main(int argc, char **argv)
     }
     ros::spin();
 
-    cv::destroyWindow("Object");
+    if(visualize)
+      cv::destroyWindow("Object");
 
     return 0;
 
