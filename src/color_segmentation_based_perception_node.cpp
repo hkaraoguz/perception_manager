@@ -318,9 +318,9 @@ perception_manager::TabletopObject createTableTopObjectFromColorSegment(const co
 
     if(center_coordinates[0] == -999.0) return object;
 
-    object.metricposcenterx = workspace_metric_offset_x + (center_coordinates[0] - anchorpose.x);
+    object.metricposcenterx = center_coordinates[0];//workspace_metric_offset_x + (center_coordinates[0] - anchorpose.x);
 
-    object.metricposcentery = workspace_metric_offset_y + (center_coordinates[1] - anchorpose.y);
+    object.metricposcentery = center_coordinates[1];//workspace_metric_offset_y + (center_coordinates[1] - anchorpose.y);
 
     // object.metricpostablecenterx = -(center_coordinates[1] - anchorpose.y);
 
