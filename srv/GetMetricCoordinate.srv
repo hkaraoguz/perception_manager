@@ -1,0 +1,4 @@
+int32 x_coord  # x axis pixel coordinate
+int32 y_coord  # y axis pixel coordinate
+---
+geometry_msgs/PointStamped point # the metric coordinate

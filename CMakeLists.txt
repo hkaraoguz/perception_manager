@@ -17,6 +17,7 @@ find_package(catkin REQUIRED COMPONENTS
   cv_bridge
   ros_cpp_utils
   tf
+  geometry_msgs
 )
 
 find_package(OpenCV REQUIRED)
@@ -64,6 +65,7 @@ find_package(OpenCV REQUIRED)
  add_service_files(
    FILES
    QueryObjects.srv
+   GetMetricCoordinate.srv
 #   Service2.srv
  )
 
@@ -114,7 +116,7 @@ find_package(OpenCV REQUIRED)
 catkin_package(
    #INCLUDE_DIRS include
 #  LIBRARIES perception_manager
-   CATKIN_DEPENDS message_runtime pcl_ros roscpp std_msgs color_segmentation cv_bridge
+   CATKIN_DEPENDS message_runtime pcl_ros roscpp std_msgs geometry_msgs color_segmentation cv_bridge
 #  DEPENDS system_lib
 )
 
@@ -144,6 +146,7 @@ include_directories(
 ## With catkin_make all packages are built within a single CMake context
 ## The recommended prefix ensures that target names across packages don't collide
  add_executable(color_segmentation_based_perception_node src/color_segmentation_based_perception_node.cpp)
+ add_executable(pixel_to_metric_coordinates_node src/pixel_to_metric_coordinates.cpp)
 
 ## Rename C++ executable without prefix
 ## The above recommended prefix causes long target names, the following renames the
@@ -154,9 +157,13 @@ include_directories(
 ## Add cmake target dependencies of the executable
 ## same as for the library above
  add_dependencies(color_segmentation_based_perception_node ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
+ add_dependencies(pixel_to_metric_coordinates_node ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 
 ## Specify libraries to link a library or executable target against
 target_link_libraries(color_segmentation_based_perception_node
+   ${catkin_LIBRARIES} ${OpenCV_LIBRARIES}
+ )
+target_link_libraries(pixel_to_metric_coordinates_node
    ${catkin_LIBRARIES} ${OpenCV_LIBRARIES}
  )
 

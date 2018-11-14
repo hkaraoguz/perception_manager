@@ -322,6 +322,7 @@ perception_manager::TabletopObject createTableTopObjectFromColorSegment(const co
 
     object.metricposcentery = center_coordinates[1];//workspace_metric_offset_y + (center_coordinates[1] - anchorpose.y);
 
+    object.metricposcenterz = center_coordinates[2];
     // object.metricpostablecenterx = -(center_coordinates[1] - anchorpose.y);
 
     //  object.metricpostablecentery = -(center_coordinates[0] - anchorpose.x);
@@ -435,7 +436,7 @@ void color_segments_callback(const color_segmentation::SegmentArrayConstPtr& seg
         vector<cv::Point2f> positions(segments->segments.size());
 
 
-        int indexWorkspaceTopLeft = (table_topleft_y)*cloud->width + table_topleft_x;
+       /* int indexWorkspaceTopLeft = (table_topleft_y)*cloud->width + table_topleft_x;
 
         if(indexWorkspaceTopLeft >= cloud->points.size())
         {
@@ -451,7 +452,7 @@ void color_segments_callback(const color_segmentation::SegmentArrayConstPtr& seg
         {
             ROS_WARN("NaN received for the table top left corner position! Cannot analyze the scene...");
             return;
-        }
+        }*/
 
         int count = 0;
 
@@ -520,12 +521,14 @@ int main(int argc, char **argv)
     }
 
 
-    pnh.getParam("workspace_metric_offset_x",workspace_metric_offset_x);
-    pnh.getParam("workspace_metric_offset_y",workspace_metric_offset_y);
-    pnh.getParam("workspace_metric_offset_z",workspace_metric_offset_z);
-    pnh.getParam("visualize",visualize);
-    pnh.getParam("cloud_topic",cloud_topic);
-    pnh.getParam("base_frame",base_frame);
+    //pnh.getParam("workspace_metric_offset_x",workspace_metric_offset_x);
+    //pnh.getParam("workspace_metric_offset_y",workspace_metric_offset_y);
+    //pnh.getParam("workspace_metric_offset_z",workspace_metric_offset_z);
+    pnh.param<bool>("visualize",visualize,"false");
+    pnh.param<std::string>("cloud_topic",cloud_topic,"/kinect2/hd/points");
+    pnh.param<std::string>("base_frame",base_frame,"/world");
+
+    ROS_INFO("Received parameters: visualize: %d, cloud_topic: %s, base_frame %s \n",visualize,cloud_topic.data(),base_frame.data());
 
 
     tf_listener = new tf::TransformListener(nh);
